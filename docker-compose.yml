@@ -1,0 +1,55 @@
+version: '3'
+
+services:
+  vaultwarden:
+    image: vaultwarden/server:latest
+    container_name: vaultwarden
+    restart: always
+    env_file:
+      - .vaultwarden.env
+    volumes:
+      - vaultwarden-data:/data
+    networks:
+      - caddy-net
+
+  n8n:
+    image: n8nio/n8n
+    container_name: n8n
+    restart: always
+    env_file:
+      - .n8n.env
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n-data:/home/node/.n8n
+    networks:
+      - caddy-net
+
+  caddy:
+    image: caddy:2
+    container_name: caddy
+    restart: always
+    ports:
+      - 80:80  # Needed for the ACME HTTP-01 challenge.
+      - 443:443
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy/config:/config
+      - ./caddy/data:/data
+    env_file:
+      - .caddy.env
+    user: $USER_ID:$GROUP_ID
+    networks:
+      - caddy-net
+
+
+networks:
+  caddy-net:
+    name: caddy-net
+    external: false
+
+volumes:
+  vaultwarden-data:
+    driver: local
+  n8n-data:
+    driver: local

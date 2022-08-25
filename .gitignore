@@ -1,0 +1,8 @@
+caddy/config/caddy/*
+caddy/data/caddy/*
+*.log
+*.log.gz
+**/*.log
+**/*.log.gz
+*.env
+!*.env.dist

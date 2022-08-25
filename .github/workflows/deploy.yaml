@@ -1,0 +1,75 @@
+name: "Deploy to Production"
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "main"
+
+jobs:
+  deployment:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      GIT_REMOTE: origin
+      DEPLOY_BRANCH: main
+      GITHUB_DOMAIN: github.com
+      PROJECT_NAME: vps-apps
+    steps:
+      - name: Setup env
+        run: |
+          echo 'GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"' >> $GITHUB_ENV
+
+# Test docker-compose.yaml
+
+      # Setup apps in remote server if none
+      - name: Setup remote server git repository if necessary
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VPS_ADDRESS_IPV4 }}
+          username: ${{ secrets.VPS_SSH_USERNAME }}
+          key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          script: |
+            if [[ ! -d "${{ secrets.VPS_APPS_PATH }}" ]]; then
+              git clone git@${{ env.GITHUB_DOMAIN }}:${{ github.repository }}.git
+              git -C "${{ secrets.VPS_APPS_PATH }}" config pull.ff only
+            fi
+      
+      # Setup envfiles
+      - name: Setup env files
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VPS_ADDRESS_IPV4 }}
+          username: ${{ secrets.VPS_SSH_USERNAME }}
+          key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          script: |
+            printf "%s\n" "Creating enviroment variables files"
+            printf "%s" "${{ secrets.CADDY_ENVFILE }}" | tee "${{ secrets.VPS_APPS_PATH }}/.caddy.env" >/dev/null 2>&1
+            printf "%s" "${{ secrets.VAULTWARDEN_ENVFILE }}" | tee "${{ secrets.VPS_APPS_PATH }}/.vaultwarden.env" >/dev/null 2>&1
+            printf "%s" "${{ secrets.N8N_ENVFILE }}" | tee "${{ secrets.VPS_APPS_PATH }}/.n8n.env" >/dev/null 2>&1
+            printf "USER_ID=%s\nGROUP_ID=%s\n" "$(id -u)" "$(id -g)" | tee "${{ secrets.VPS_APPS_PATH }}/.env" >/dev/null 2>&1
+            printf "Environmental files created"
+
+      # Pull changes
+      - name: Pushing the changes
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VPS_ADDRESS_IPV4 }}
+          username: ${{ secrets.VPS_SSH_USERNAME }}
+          key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          script: |
+            git -C "${{ secrets.VPS_APPS_PATH }}" branch ${{ env.DEPLOY_BRANCH }} --set-upstream-to "${{ env.GIT_REMOTE }}/${{ env.DEPLOY_BRANCH }}"
+            git -C "${{ secrets.VPS_APPS_PATH }}" reset --hard HEAD
+            git -C "${{ secrets.VPS_APPS_PATH }}" fetch -ap
+            git -C "${{ secrets.VPS_APPS_PATH }}" pull ${{ env.GIT_REMOTE }} ${{ env.DEPLOY_BRANCH }}
+
+      # Executing docker compose
+      - name: Build & Run containers
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VPS_ADDRESS_IPV4 }}
+          username: ${{ secrets.VPS_SSH_USERNAME }}
+          key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          script: |
+            cd "${{ secrets.VPS_APPS_PATH }}"
+            docker compose --project-name "${{ env.PROJECT_NAME }}" up -d --build
+
