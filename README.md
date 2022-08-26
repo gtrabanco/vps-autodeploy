@@ -79,7 +79,7 @@ See more help:
 ## Setup a crontab
 
 ```bash
-./scripts/setup-crontab.sh 0 */12 * * * '${HOME}/vps-apps/scripts/docker-compose-backup.sh --project-name vps-apps --volume-name vaultwarden --volume-path "/data" --backup-path "/backup" --backup-prefix "vaultwarden" --image alpine:latest'
+./scripts/setup-crontab.sh 0 */12 * * * 'PROJECT_PATH="${HOME}/vps-apps" "${PROJECT_PATH}/scripts/docker-compose-backup.sh" --project-name vps-apps --volume-name vaultwarden --volume-path "/data" --backup-path "${PROJECT_PATH}/backups" --backup-prefix "vaultwarden" --image alpine:latest'
 ```
 
 See more help:
