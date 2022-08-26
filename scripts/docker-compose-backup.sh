@@ -7,46 +7,46 @@ backup_date="$(date +%Y-%m-%d-%H-%M-%S)"
 VOLUME_PATH="/data"
 BACKUP_PATH="$PWD"
 IMAGE="alpine:latest"
-BACKUP_PREFIX="backup-${backup_date}"
+BACKUP_PREFIX="backup"
 COMPOSE_FILE="docker-compose.yml"
 PROJECT_DIRECTORY="$PWD"
 COMPOSE_PROJECT_NAME=""
 
 while [[ -n "${1:-}" ]]; do
   case "$1" in
-  --compose-file)
+  --compose-file | -f)
     COMPOSE_FILE="${2:-}"
     shift 2
     ;;
-  --project-name)
+  --project-name | -p)
     COMPOSE_PROJECT_NAME="${2:-}"
     shift 2
     ;;
-  --project-directory)
+  --project-directory | -d)
     PROJECT_DIRECTORY="${2:-}"
     shift 2
     ;;
-  --volume-name)
+  --volume-name | -v)
     VOLUME_NAME="${2:-}"
     shift 2
     ;;
-  --volume-path)
+  --volume-path | -vp)
     VOLUME_PATH="${2:-}"
     shift 2
     ;;
-  --backup-path)
+  --backup-path | -bp)
     BACKUP_PATH="${2:-}"
     shift 2
     ;;
-  --backup-prefix)
+  --backup-prefix | -bx)
     BACKUP_PREFIX="${2:-}"
     shift 2
     ;;
-  --image)
+  --image | -i)
     IMAGE="${2:-}"
     shift 2
     ;;
-  --help)
+  --help | -h)
     echo "Usage: $0 --compose-file <compose-file> [--project-name <project-name>] [--project-directory <project-directory>] [--volume-name <volume-name>] [--volume-path <volume-path>] [--backup-path <backup-path>] [--backup-prefix <backup-prefix>] [--image <image>]"
     echo
     echo "Options:"
@@ -70,6 +70,9 @@ while [[ -n "${1:-}" ]]; do
     echo "Example:"
     echo "  $0 --compose-file docker-compose.yml --volume-name my-volume --volume-path /data --backup-path ./backup --backup-prefix backup"
     echo
+    echo "  $0 <volume_name> [<backup_prefix> [<backup_path>]]"
+    echo
+    echo
     exit 0
     ;;
   *)
@@ -78,8 +81,15 @@ while [[ -n "${1:-}" ]]; do
     fi
     shift
 
-    BACKUP_PREFIX="${1:-backup-${backup_date}}"
-    shift 1
+    if [[ -n "${1:-}" ]]; then
+      BACKUP_PREFIX="${1:-backup}"
+      shift 1
+    fi
+
+    if [[ -n "${1:-}" ]]; then
+      BACKUP_PATH="${1:-$PWD}"
+      shift 1
+    fi
     ;;
   esac
 done
@@ -121,8 +131,7 @@ if [[ -n "${COMPOSE_FILE:-}" ]]; then
 fi
 
 for volume in $(docker volume ls -q --filter name="${COMPOSE_PROJECT_NAME}_${VOLUME_NAME}"); do
-  # FIXME: tar: can't open '/home/apps/vps-apps/backup-2022-08-21-01-54-46-_vaultwarden-data.tar.bz2': No such file or directory
-  echo docker run --rm --volume "${volume}:${VOLUME_PATH}" --volume"${IMAGE}" tar cjf "${BACKUP_PATH}/${BACKUP_PREFIX}-${COMPOSE_PROJECT_NAME}_${VOLUME_NAME}.tar.bz2" "${VOLUME_PATH}"
+  docker run --rm --volume "${volume}:${VOLUME_PATH}" --volume "${BACKUP_PATH}:/backup" "${IMAGE}" tar cjf "/backup/${BACKUP_PREFIX}-${backup_date}-${COMPOSE_PROJECT_NAME}_${VOLUME_NAME}.tar.bz2" "${VOLUME_PATH}"
 done
 
 # start again docker compose

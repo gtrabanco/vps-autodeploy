@@ -56,10 +56,52 @@ ip6tables-save | sudo tee /etc/iptables/rules.v6
 iptables-save | sudo tee /etc/iptables/rules.v4
 ```
 
+## Perform a backup
+
+```bash
+./scripts/docker-compose-backup.sh \
+  --project-name vps-apps \
+  --volume-name vaultwarden \
+  --volume-path "/data" \
+  --backup-path "./backups" \
+  --backup-prefix "vaultwarden" \
+  --image alpine:latest
+```
+
+It will create file in `./backups` with the name `backup-2022-08-26-03-15-31-vps-apps_vaultwarden.tar.bz2`. I use bz2 but you can switch to other tool by changing command in line [134 of `./scripts/docker-compose-backup.sh`](blob/HEAD/scripts/docker-compose-backup.sh#L134)
+
+See more help:
+
+```bash
+./scripts/docker-compose-backup.sh --help
+```
+
+## Setup a crontab
+
+```bash
+./scripts/setup-crontab.sh 0 */12 * * * '${HOME}/vps-apps/scripts/docker-compose-backup.sh --project-name vps-apps --volume-name vaultwarden --volume-path "/data" --backup-path "/backup" --backup-prefix "vaultwarden" --image alpine:latest'
+```
+
+See more help:
+
+```bash
+./scripts/setup-crontab.sh --help
+```
+
+## Restoration a backup
+
+Coming soon...
+
+## Migrating volumes
+
+Documentation & script is coming soon but you can check [`copy-docker-volume-compose.sh`](blob/HEAD/scripts/copy-docker-volume-compose.sh) with an example I used to migrate from my previous vaultwarden volume.
+
+
 ## TODO
 
-- [ ] Scripts to make a backup
-- [ ] Automate backups
+- [x] Scripts to make a backup
+- [ ] Script to restore a backup
+- [-] Automate backups (Must be set manually)
 - [ ] More generic github action to automatically use `*_ENVFILES` files and create them in server.
 - [ ] Add testing for `docker-compose.yaml` in pre commit.
 

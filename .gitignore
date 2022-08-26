@@ -6,3 +6,5 @@ caddy/data/caddy/*
 **/*.log.gz
 *.env
 !*.env.dist
+backups/*
+!backups/.gitkeep
